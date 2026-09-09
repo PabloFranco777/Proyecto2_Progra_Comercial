@@ -26,7 +26,6 @@ public class PedidoPersistenceAdapter implements PedidoRepositoryPort {
 
     @Override
     public List<Pedido> obtenerActivos() {
-        // Obtenemos los que no están pagados para las vistas activas
         return repository.findByEstadoNot("PAGADO")
                 .stream().map(this::toDomain).collect(Collectors.toList());
     }
@@ -36,7 +35,13 @@ public class PedidoPersistenceAdapter implements PedidoRepositoryPort {
         return repository.findById(id).map(this::toDomain);
     }
 
-private Pedido toDomain(PedidoEntity entity) {
+    @Override
+    public void actualizarEstado(Long id, String estado) {
+        // Ejecuta un UPDATE directo en SQL sin tocar la tabla intermedia de platillos
+        repository.actualizarEstadoPedido(id, estado);
+    }
+
+    private Pedido toDomain(PedidoEntity entity) {
         Pedido pedido = new Pedido();
         pedido.setId(entity.getId());
         pedido.setMesaId(entity.getMesaId());
@@ -44,7 +49,6 @@ private Pedido toDomain(PedidoEntity entity) {
         pedido.setEstado(EstadoPedido.valueOf(entity.getEstado()));
         pedido.setFechaCreacion(entity.getFechaCreacion());
         
-        // Mapeo de platillos
         if (entity.getPlatillos() != null) {
             pedido.setPlatillos(entity.getPlatillos().stream().map(pe -> {
                 com.restaurante.tps.domain.model.Platillo p = new com.restaurante.tps.domain.model.Platillo();
@@ -65,14 +69,13 @@ private Pedido toDomain(PedidoEntity entity) {
         entity.setEstado(pedido.getEstado().name());
         entity.setFechaCreacion(pedido.getFechaCreacion());
         
-        // Relacionar platillos antes de guardar
         if (pedido.getPlatillos() != null) {
             entity.setPlatillos(pedido.getPlatillos().stream().map(p -> {
                 PlatilloEntity pe = new PlatilloEntity();
-                pe.setId(p.getId()); // Solo el ID es necesario para relacionarlos en la BD
+                pe.setId(p.getId());
                 return pe;
             }).collect(Collectors.toList()));
         }
         return entity;
     }
-}  
+}

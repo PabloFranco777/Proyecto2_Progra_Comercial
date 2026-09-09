@@ -15,4 +15,5 @@ public class PlatilloEntity {
     private String categoria;
     private BigDecimal precio;
     private String descripcion;
+    private Integer stock;
 }

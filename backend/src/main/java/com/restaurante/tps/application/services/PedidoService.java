@@ -44,11 +44,16 @@ public class PedidoService implements PedidoUseCase {
 
     @Override
     public Pedido actualizarEstadoPedido(Long id, EstadoPedido nuevoEstado) {
-        Pedido pedido = pedidoRepositoryPort.obtenerPorId(id)
+        // Validar que el pedido exista antes de actualizar
+        pedidoRepositoryPort.obtenerPorId(id)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
         
-        pedido.setEstado(nuevoEstado);
-        return pedidoRepositoryPort.guardar(pedido);
+        // Ejecutamos el UPDATE directo por SQL para no tocar la tabla intermedia de platillos
+        pedidoRepositoryPort.actualizarEstado(id, nuevoEstado.name());
+        
+        // Retornamos el pedido ya actualizado con sus platillos intactos
+        return pedidoRepositoryPort.obtenerPorId(id)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
     }
 
     @Override

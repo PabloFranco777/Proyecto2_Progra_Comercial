@@ -7,7 +7,7 @@ export default function MeseroView() {
     const [menu, setMenu] = useState<any[]>([]);
     const [mesaSeleccionada, setMesaSeleccionada] = useState<number | null>(null);
     const [instrucciones, setInstrucciones] = useState('');
-    const [platosSeleccionados, setPlatosSeleccionados] = useState<number[]>([]);
+    const [cantidades, setCantidades] = useState<{ [key: number]: number }>({});
 
     const cargarDatos = () => {
         axios.get('http://localhost:8080/api/mesas').then(res => setMesas(res.data));
@@ -26,24 +26,36 @@ export default function MeseroView() {
         return () => { stompClient.deactivate(); };
     }, []);
 
-    const togglePlato = (id: number) => {
-        setPlatosSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    const cambiarCantidad = (id: number, cantidad: number) => {
+        if (cantidad <= 0) {
+            const copia = { ...cantidades };
+            delete copia[id];
+            setCantidades(copia);
+        } else {
+            setCantidades({ ...cantidades, [id]: cantidad });
+        }
     };
 
     const registrarPedido = () => {
         if (!mesaSeleccionada) return alert('Selecciona una mesa');
-        if (platosSeleccionados.length === 0) return alert('Selecciona al menos un platillo');
+        
+        const platosArray = Object.entries(cantidades).map(([id, cantidad]) => ({
+            id: Number(id),
+            cantidad: cantidad
+        }));
+
+        if (platosArray.length === 0) return alert('Selecciona al menos un platillo y su cantidad');
         
         const nuevoPedido = {
             mesaId: mesaSeleccionada,
             instruccionesEspeciales: instrucciones,
-            platillos: platosSeleccionados.map(id => ({ id })) // Enviamos el arreglo de objetos con ID
+            platillos: platosArray
         };
 
         axios.post('http://localhost:8080/api/pedidos', nuevoPedido).then(() => {
             alert('Pedido registrado con éxito');
             setInstrucciones('');
-            setPlatosSeleccionados([]);
+            setCantidades({});
             setMesaSeleccionada(null);
             cargarDatos();
         });
@@ -53,7 +65,6 @@ export default function MeseroView() {
         axios.put(`http://localhost:8080/api/mesas/${id}/liberar`).then(() => cargarDatos());
     };
 
-    // Agrupar menú por categoría
     const categorias = ['Entrada', 'Plato Fuerte', 'Postre', 'Bebida'];
 
     return (
@@ -78,14 +89,31 @@ export default function MeseroView() {
                         {categorias.map(cat => (
                             <div key={cat} style={{ flex: '1', minWidth: '200px' }}>
                                 <h4 style={{ borderBottom: '2px solid black' }}>{cat}s</h4>
-                                {menu.filter(p => p.categoria === cat).map(p => (
-                                    <div key={p.id} style={{ marginBottom: '5px' }}>
-                                        <label style={{ cursor: 'pointer' }}>
-                                            <input type="checkbox" checked={platosSeleccionados.includes(p.id)} onChange={() => togglePlato(p.id)} />
-                                            {' '}{p.nombre} - ${p.precio}
-                                        </label>
-                                    </div>
-                                ))}
+                                <div>
+                                    {menu.filter(p => p.categoria === cat).map(p => (
+                                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '13px' }}>{p.nombre} (${p.precio})</span>
+                                            <input 
+                                                type="number" 
+                                                min="0" 
+                                                value={cantidades[p.id] !== undefined ? cantidades[p.id] : ''} 
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                                    cambiarCantidad(p.id, isNaN(val) ? 0 : val);
+                                                }} 
+                                                style={{ 
+                                                    width: '45px', 
+                                                    padding: '2px', 
+                                                    textAlign: 'center', 
+                                                    backgroundColor: 'white', 
+                                                    color: 'black', 
+                                                    border: '1px solid #ccc', 
+                                                    borderRadius: '4px' 
+                                                }}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         ))}
                     </div>
